@@ -80,7 +80,7 @@ function handleImage(event) {
 // ── Gemini Card Identification ──
 async function identifyCardGemini(base64, mimeType) {
   const gk = localStorage.getItem('pv_gk');
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${gk}`;
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${gk}`;
 
   const prompt = `You are a Pokémon TCG expert. Examine this card image carefully.
 Return ONLY a valid JSON object, no markdown, no extra text:
