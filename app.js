@@ -133,91 +133,67 @@ If this is NOT a Pokémon card, return: {"error": "Not a Pokemon card"}`;
   return parsed;
 }
 
-// ── TCGdex Price Lookup (no API key needed) ──
+// ── Pokemon TCG Price Lookup (pokemontcg.io — no API key needed) ──
 async function lookupPriceTCGdex(name, setId, number) {
-  // Strategy: search by name, try to match set/number
-  const searchName = encodeURIComponent(name);
-  
   try {
-    // Try direct card search
-    const res = await fetch(`https://api.tcgdex.net/v2/en/cards?name=${searchName}`, {
-      headers: { 'Accept': 'application/json' }
-    });
+    // Build queries from most specific to least, stop at first match
+    const queries = [];
+    if (setId && number) {
+      const n = number.split('/')[0].replace(/^0+(\d)/, '$1');
+      queries.push(`name:"${name}" set.id:${setId.toLowerCase()} number:${n}`);
+    }
+    if (setId) queries.push(`name:"${name}" set.id:${setId.toLowerCase()}`);
+    queries.push(`name:"${name}"`);
 
-    if (!res.ok) throw new Error('TCGdex unavailable');
-    const cards = await res.json();
-
-    if (!cards || cards.length === 0) {
-      return { price: null, pricelow: null, tcgImage: null, setName: null };
+    for (const query of queries) {
+      const card = await ptcgFetch(query);
+      if (card) return extractCardPrice(card);
     }
 
-    // Find best match
-    let match = cards[0];
-
-    // Try to narrow by set or number
-    if (number) {
-      const cleanNum = number.split('/')[0].replace(/^0+/, '');
-      const numMatch = cards.find(c => 
-        c.localId === cleanNum || 
-        String(c.localId) === cleanNum
-      );
-      if (numMatch) match = numMatch;
-    }
-
-    // Get full card details including prices
-    const detailRes = await fetch(`https://api.tcgdex.net/v2/en/cards/${match.id}`, {
-      headers: { 'Accept': 'application/json' }
-    });
-
-    if (!detailRes.ok) {
-      return { price: null, pricelow: null, tcgImage: match.image ? match.image + '/high.webp' : null, setName: match.set?.name || null };
-    }
-
-    const detail = await detailRes.json();
-
-    // Extract price from TCGdex markets data
-    let price = null;
-    let pricelow = null;
-
-    const markets = detail.variants;
-    if (markets) {
-      // Try to get price from any variant
-      for (const variant of Object.values(markets)) {
-        if (variant?.tcgplayer?.normal?.market) {
-          price = variant.tcgplayer.normal.market;
-          pricelow = variant.tcgplayer.normal.low || null;
-          break;
-        }
-        if (variant?.tcgplayer?.holofoil?.market) {
-          price = variant.tcgplayer.holofoil.market;
-          pricelow = variant.tcgplayer.holofoil.low || null;
-          break;
-        }
-      }
-    }
-
-    // Also check top-level tcgplayer
-    if (!price && detail.tcgplayer) {
-      const tcp = detail.tcgplayer;
-      if (tcp.normal?.market) { price = tcp.normal.market; pricelow = tcp.normal.low || null; }
-      else if (tcp.holofoil?.market) { price = tcp.holofoil.market; pricelow = tcp.holofoil.low || null; }
-      else if (tcp.reverseHolofoil?.market) { price = tcp.reverseHolofoil.market; }
-    }
-
-    const tcgImage = detail.image ? detail.image + '/high.webp' : null;
-
-    return {
-      price,
-      pricelow,
-      tcgImage,
-      setName: detail.set?.name || match.set?.name || null,
-      tcgdexId: detail.id
-    };
-
+    return { price: null, pricelow: null, tcgImage: null, setName: null };
   } catch (err) {
-    console.warn('TCGdex lookup failed:', err);
+    console.warn('Price lookup failed:', err);
     return { price: null, pricelow: null, tcgImage: null, setName: null };
   }
+}
+
+async function ptcgFetch(query) {
+  const res = await fetch(
+    `https://api.pokemontcg.io/v2/cards?q=${encodeURIComponent(query)}&pageSize=5`,
+    { headers: { 'Accept': 'application/json' } }
+  );
+  if (!res.ok) throw new Error(`Pokemon TCG API error ${res.status}`);
+  const data = await res.json();
+  return data.data?.[0] ?? null;
+}
+
+function extractCardPrice(card) {
+  let price = null;
+  let pricelow = null;
+
+  const prices = card.tcgplayer?.prices;
+  if (prices) {
+    const t = prices.holofoil ?? prices.reverseHolofoil ?? prices.normal ??
+      prices['1stEditionHolofoil'] ?? prices['1stEditionNormal'];
+    if (t) {
+      price = t.market ?? t.mid ?? null;
+      pricelow = t.low ?? null;
+    }
+  }
+
+  if (price == null && card.cardmarket?.prices) {
+    const cm = card.cardmarket.prices;
+    price = cm.averageSellPrice ?? cm.trendPrice ?? null;
+    pricelow = cm.lowPrice ?? null;
+  }
+
+  return {
+    price,
+    pricelow,
+    tcgImage: card.images?.large || card.images?.small || null,
+    setName: card.set?.name || null,
+    tcgdexId: card.id
+  };
 }
 
 // ── Show Result ──
