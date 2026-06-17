@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#0f0f1a" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="PokéVault" />
+  <link rel="manifest" href="manifest.json" />
+  <link rel="apple-touch-icon" href="icons/icon-192.png" />
+  <link rel="stylesheet" href="style.css" />
+  <title>PokéVault</title>
+</head>
+<body>
+
+  <!-- SETUP SCREEN -->
+  <div id="setup-screen" class="screen">
+    <div class="setup-inner">
+      <div class="logo-block">
+        <div class="logo-icon">◈</div>
+        <h1>PokéVault</h1>
+        <p class="tagline">Your personal card portfolio</p>
+      </div>
+      <div class="setup-card">
+        <h2>One-time setup</h2>
+        <p>Just one free API key needed. Stored only on your device.</p>
+
+        <div class="field-group">
+          <label for="gemini-key">Google Gemini API Key</label>
+          <span class="field-hint">Get it free at <a href="https://aistudio.google.com/app/apikey" target="_blank">aistudio.google.com</a></span>
+          <div class="input-row">
+            <input type="password" id="gemini-key" placeholder="AQ.Ab8RN..." autocomplete="off" />
+            <button class="toggle-vis" onclick="toggleVis('gemini-key')">👁</button>
+          </div>
+        </div>
+
+        <button class="btn-primary" onclick="saveKeys()">Save & Start</button>
+        <p class="key-note">Key is saved in your browser only. Never sent anywhere except Google's API.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- MAIN APP -->
+  <div id="app-screen" class="screen hidden">
+
+    <header>
+      <div class="header-left">
+        <span class="header-logo">◈</span>
+        <span class="header-title">PokéVault</span>
+      </div>
+      <button class="settings-btn" onclick="showSettings()">⚙</button>
+    </header>
+
+    <div class="portfolio-summary">
+      <div class="summary-label">Total Portfolio Value</div>
+      <div class="summary-value" id="portfolio-total">$0.00</div>
+      <div class="summary-sub" id="card-count">0 cards in collection</div>
+    </div>
+
+    <div class="tabs">
+      <button class="tab active" id="tab-btn-collection" onclick="switchTab('collection', this)">Collection</button>
+      <button class="tab" id="tab-btn-scan" onclick="switchTab('scan', this)">+ Scan Card</button>
+    </div>
+
+    <!-- Collection Tab -->
+    <div id="tab-collection" class="tab-content">
+      <div id="empty-state" class="empty-state">
+        <div class="empty-icon">🃏</div>
+        <p>No cards yet</p>
+        <span>Tap "Scan Card" to add your first card</span>
+      </div>
+      <div id="card-grid" class="card-grid"></div>
+    </div>
+
+    <!-- Scan Tab -->
+    <div id="tab-scan" class="tab-content hidden">
+      <div class="scan-area">
+
+        <div class="upload-zone" id="upload-zone" onclick="document.getElementById('file-input').click()">
+          <div class="upload-icon">📷</div>
+          <div class="upload-text">Tap to take photo or upload</div>
+          <div class="upload-sub">Works with English & Japanese cards</div>
+          <input type="file" id="file-input" accept="image/*" capture="environment" onchange="handleImage(event)" style="display:none" />
+        </div>
+
+        <div id="preview-area" class="preview-area hidden">
+          <img id="preview-img" src="" alt="Card preview" />
+          <button class="btn-clear" onclick="clearScan()">✕ Clear</button>
+        </div>
+
+        <div id="scan-status" class="scan-status hidden">
+          <div class="spinner"></div>
+          <span id="scan-status-text">Identifying card...</span>
+        </div>
+
+        <div id="scan-result" class="scan-result hidden">
+          <div class="result-card">
+            <div class="result-badge">✓ Identified</div>
+            <div class="result-name" id="result-name"></div>
+            <div class="result-meta" id="result-meta"></div>
+            <div class="price-block">
+              <div class="price-row">
+                <span>Market Price</span>
+                <span class="price-val" id="result-price">—</span>
+              </div>
+              <div class="price-row" id="price-row-low" style="display:none">
+                <span>Low</span>
+                <span class="price-low" id="result-price-low">—</span>
+              </div>
+            </div>
+            <div class="result-actions">
+              <button class="btn-primary" onclick="addToCollection()">Add to Portfolio</button>
+              <button class="btn-secondary" onclick="clearScan()">Scan Another</button>
+            </div>
+          </div>
+        </div>
+
+        <div id="scan-error" class="scan-error hidden">
+          <div class="error-icon">⚠</div>
+          <div id="scan-error-text">Could not identify card. Try better lighting or a clearer photo.</div>
+          <button class="btn-secondary" onclick="clearScan()">Try Again</button>
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Settings Modal -->
+  <div id="settings-modal" class="modal hidden" onclick="modalBackdropClose(event, 'settings-modal')">
+    <div class="modal-inner">
+      <div class="modal-header">
+        <h2>Settings</h2>
+        <button onclick="hideSettings()">✕</button>
+      </div>
+      <div class="field-group">
+        <label for="settings-gemini">Gemini API Key</label>
+        <div class="input-row">
+          <input type="password" id="settings-gemini" autocomplete="off" />
+          <button class="toggle-vis" onclick="toggleVis('settings-gemini')">👁</button>
+        </div>
+      </div>
+      <button class="btn-primary" onclick="saveSettingsKeys()">Save Key</button>
+      <div class="danger-zone">
+        <p>Danger Zone</p>
+        <button class="btn-danger" onclick="clearAllData()">Clear All Data & Cards</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Card Detail Modal -->
+  <div id="detail-modal" class="modal hidden" onclick="modalBackdropClose(event, 'detail-modal')">
+    <div class="modal-inner">
+      <div class="modal-header">
+        <h2 id="detail-name">Card</h2>
+        <button onclick="hideDetail()">✕</button>
+      </div>
+      <div id="detail-body"></div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js').catch(() => {});
+    }
+  </script>
+</body>
+</html>
